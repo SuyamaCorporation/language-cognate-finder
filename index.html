@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>語源・同根語ファインダー</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="max-w-3xl mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold text-gray-800 mb-2">語源・同根語ファインダー</h1>
+    <p class="text-gray-500 text-sm mb-6">英単語を入力すると、含まれる語根を検出して関連語を表示します。語根カードで語彙を体系的に学習できます。</p>
+
+    <!-- 検索エリア -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5 mb-6">
+      <div class="flex gap-2 mb-2">
+        <label for="word-input" class="sr-only">英単語を入力</label>
+        <input id="word-input" type="text" placeholder="例: transport, dictate, rupture" maxlength="40"
+          class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          aria-label="英単語を入力" tabindex="0">
+        <button id="search-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700" aria-label="語根を検索" tabindex="0">検索</button>
+      </div>
+      <div id="search-result" class="hidden mt-4"></div>
+    </div>
+
+    <!-- タブ: 語根一覧 / お気に入り -->
+    <div class="flex gap-2 mb-5">
+      <button id="tab-all" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white" aria-label="語根一覧" tabindex="0">語根一覧</button>
+      <button id="tab-fav" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-600 hover:bg-gray-50" aria-label="お気に入り" tabindex="0">お気に入り</button>
+    </div>
+
+    <div id="panel-all">
+      <div id="root-cards" class="space-y-3"></div>
+    </div>
+    <div id="panel-fav" class="hidden">
+      <div id="fav-cards" class="space-y-3"></div>
+    </div>
+  </div>
+
+<script>
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // ---- 語根辞書（30以上） ----
+  const ROOT_DB = [
+    { root: 'port', lang: 'Latin', meaning: '運ぶ', derivatives: ['transport', 'export', 'import', 'portable', 'report', 'support', 'deport', 'portfolio'] },
+    { root: 'dict', lang: 'Latin', meaning: '言う・宣言する', derivatives: ['dictate', 'predict', 'contradict', 'diction', 'verdict', 'indicate', 'dedicate', 'edict'] },
+    { root: 'rupt', lang: 'Latin', meaning: '壊す・破る', derivatives: ['rupture', 'interrupt', 'corrupt', 'disrupt', 'bankrupt', 'erupt', 'abrupt'] },
+    { root: 'duc/duct', lang: 'Latin', meaning: '導く', derivatives: ['conduct', 'produce', 'reduce', 'educate', 'introduce', 'deduct', 'induct', 'viaduct'] },
+    { root: 'scrib/script', lang: 'Latin', meaning: '書く', derivatives: ['describe', 'prescription', 'script', 'manuscript', 'subscribe', 'transcript', 'inscribe'] },
+    { root: 'spec/spect', lang: 'Latin', meaning: '見る', derivatives: ['inspect', 'spectacle', 'respect', 'prospect', 'suspect', 'expect', 'aspect', 'spectrum'] },
+    { root: 'mit/miss', lang: 'Latin', meaning: '送る', derivatives: ['transmit', 'submit', 'admit', 'permit', 'mission', 'dismiss', 'emit', 'commit'] },
+    { root: 'ven/vent', lang: 'Latin', meaning: '来る', derivatives: ['adventure', 'event', 'prevent', 'convention', 'invention', 'revenue', 'avenue', 'intervene'] },
+    { root: 'fer', lang: 'Latin', meaning: '運ぶ・持つ', derivatives: ['transfer', 'prefer', 'refer', 'differ', 'offer', 'infer', 'confer', 'suffer'] },
+    { root: 'cap/cept', lang: 'Latin', meaning: '取る・掴む', derivatives: ['capture', 'accept', 'except', 'concept', 'perceive', 'capable', 'captive', 'reception'] },
+    { root: 'aud', lang: 'Latin', meaning: '聞く', derivatives: ['audio', 'audience', 'auditorium', 'audit', 'audible', 'audition'] },
+    { root: 'vis/vid', lang: 'Latin', meaning: '見る', derivatives: ['vision', 'video', 'visible', 'provide', 'evidence', 'visit', 'revise', 'supervise'] },
+    { root: 'voc/vok', lang: 'Latin', meaning: '呼ぶ・声', derivatives: ['vocal', 'invoke', 'provoke', 'revoke', 'advocate', 'vocabulary', 'evoke', 'vocation'] },
+    { root: 'graph', lang: 'Greek', meaning: '書く', derivatives: ['photograph', 'biography', 'geography', 'paragraph', 'autograph', 'graphic', 'telegraph'] },
+    { root: 'log', lang: 'Greek', meaning: '言葉・研究', derivatives: ['biology', 'logic', 'dialogue', 'catalogue', 'monologue', 'prologue', 'epilogue', 'analogy'] },
+    { root: 'path', lang: 'Greek', meaning: '感じる・苦しむ', derivatives: ['sympathy', 'empathy', 'pathetic', 'apathy', 'antipathy', 'telepathy', 'sociopath'] },
+    { root: 'phil', lang: 'Greek', meaning: '愛する', derivatives: ['philosophy', 'philanthropy', 'philharmonic', 'bibliophile', 'Philadelphia'] },
+    { root: 'phon', lang: 'Greek', meaning: '音・声', derivatives: ['phone', 'microphone', 'symphony', 'phonics', 'telephone', 'saxophone', 'megaphone'] },
+    { root: 'geo', lang: 'Greek', meaning: '地球・大地', derivatives: ['geography', 'geology', 'geometry', 'geothermal', 'geopolitics'] },
+    { root: 'bio', lang: 'Greek', meaning: '生命', derivatives: ['biology', 'biography', 'antibiotic', 'biodiversity', 'biopsy', 'biome'] },
+    { root: 'chron', lang: 'Greek', meaning: '時間', derivatives: ['chronic', 'chronicle', 'synchronize', 'anachronism', 'chronology'] },
+    { root: 'derm', lang: 'Greek', meaning: '皮膚', derivatives: ['dermatology', 'epidermis', 'hypodermic', 'pachyderm', 'taxidermy'] },
+    { root: 'hydr', lang: 'Greek', meaning: '水', derivatives: ['hydrogen', 'hydrate', 'dehydrate', 'hydraulic', 'hydroelectric', 'hydrophobia'] },
+    { root: 'therm', lang: 'Greek', meaning: '熱', derivatives: ['thermometer', 'thermostat', 'thermal', 'thermodynamics', 'hypothermia'] },
+    { root: 'aqu', lang: 'Latin', meaning: '水', derivatives: ['aquarium', 'aquatic', 'aqueduct', 'aquifer', 'aquamarine'] },
+    { root: 'terr', lang: 'Latin', meaning: '土地', derivatives: ['territory', 'terrain', 'terrace', 'terrestrial', 'Mediterranean', 'inter'] },
+    { root: 'luc/lum', lang: 'Latin', meaning: '光', derivatives: ['luminous', 'illuminate', 'translucent', 'lucid', 'lunar', 'luminary'] },
+    { root: 'man', lang: 'Latin', meaning: '手', derivatives: ['manufacture', 'manual', 'manage', 'manipulate', 'manicure', 'manuscript', 'mandate'] },
+    { root: 'fract/frag', lang: 'Latin', meaning: '壊す・割る', derivatives: ['fracture', 'fragment', 'fraction', 'fragile', 'infraction', 'refract'] },
+    { root: 'nov', lang: 'Latin', meaning: '新しい', derivatives: ['novel', 'novice', 'innovation', 'renovate', 'novelty'] },
+    { root: 'prim', lang: 'Latin', meaning: '最初・第一', derivatives: ['primary', 'prime', 'primitive', 'premier', 'primeval', 'prior'] },
+    { root: 'greg', lang: 'Latin', meaning: '群れ・集まる', derivatives: ['congregate', 'segregate', 'aggregate', 'gregarious'] },
+    { root: 'cred', lang: 'Latin', meaning: '信じる', derivatives: ['credit', 'credible', 'incredible', 'credential', 'creed', 'accredit'] },
+  ];
+
+  // ---- ストレージ ----
+  function loadFavs() { return JSON.parse(localStorage.getItem('cognate_favs') || '[]'); }
+  function saveFavs(a) { localStorage.setItem('cognate_favs', JSON.stringify(a)); }
+
+  // ---- 語根カード生成 ----
+  function makeCard(r, opened) {
+    const favs = loadFavs();
+    const isFav = favs.includes(r.root);
+    const div = document.createElement('div');
+    div.className = 'bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden';
+
+    const header = document.createElement('div');
+    header.className = 'flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50';
+    header.setAttribute('tabindex', '0');
+    header.setAttribute('aria-label', `語根 ${r.root} の詳細を展開`);
+    header.innerHTML = `
+      <div class="flex items-center gap-3">
+        <span class="font-mono font-bold text-blue-700 text-base">${escapeHtml(r.root)}</span>
+        <span class="text-xs text-gray-400">${escapeHtml(r.lang)}</span>
+        <span class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full border border-blue-200">${escapeHtml(r.meaning)}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="fav-btn text-lg ${isFav ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400" aria-label="${isFav ? 'お気に入りから削除' : 'お気に入りに追加'}" tabindex="0">${isFav ? '★' : '☆'}</button>
+        <span class="toggle-icon text-gray-400 text-sm">${opened ? '▲' : '▼'}</span>
+      </div>`;
+    div.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = `px-4 pb-4 ${opened ? '' : 'hidden'}`;
+    body.innerHTML = `<div class="flex flex-wrap gap-2 pt-1">
+      ${r.derivatives.map(w => `<span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-md border border-gray-200 font-mono">${escapeHtml(w)}</span>`).join('')}
+    </div>`;
+    div.appendChild(body);
+
+    header.addEventListener('click', e => {
+      if (e.target.closest('.fav-btn')) return;
+      const isHidden = body.classList.contains('hidden');
+      body.classList.toggle('hidden');
+      header.querySelector('.toggle-icon').textContent = isHidden ? '▲' : '▼';
+    });
+    header.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); header.click(); }
+    });
+
+    const favBtn = header.querySelector('.fav-btn');
+    favBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const favs2 = loadFavs();
+      const idx = favs2.indexOf(r.root);
+      if (idx === -1) favs2.push(r.root);
+      else favs2.splice(idx, 1);
+      saveFavs(favs2);
+      favBtn.textContent = favs2.includes(r.root) ? '★' : '☆';
+      favBtn.className = `fav-btn text-lg ${favs2.includes(r.root) ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400`;
+      if (document.getElementById('panel-fav').classList.contains('hidden') === false) renderFavs();
+    });
+
+    return div;
+  }
+
+  function renderAll() {
+    const container = document.getElementById('root-cards');
+    container.innerHTML = '';
+    ROOT_DB.forEach(r => container.appendChild(makeCard(r, false)));
+  }
+
+  function renderFavs() {
+    const favs = loadFavs();
+    const container = document.getElementById('fav-cards');
+    container.innerHTML = '';
+    if (favs.length === 0) {
+      container.innerHTML = '<p class="text-xs text-gray-400">お気に入りの語根はありません。語根カードの ☆ を押して追加してください。</p>';
+      return;
+    }
+    ROOT_DB.filter(r => favs.includes(r.root)).forEach(r => container.appendChild(makeCard(r, true)));
+  }
+
+  // ---- 検索 ----
+  function doSearch() {
+    const raw = document.getElementById('word-input').value.trim().toLowerCase();
+    const container = document.getElementById('search-result');
+    if (!raw) { container.classList.add('hidden'); return; }
+
+    const matches = ROOT_DB.filter(r => {
+      const rootNorm = r.root.split('/')[0].toLowerCase();
+      return raw.includes(rootNorm) || r.derivatives.some(d => d.toLowerCase() === raw);
+    });
+
+    container.classList.remove('hidden');
+    container.innerHTML = '';
+
+    if (matches.length === 0) {
+      container.innerHTML = '<p class="text-sm text-gray-500">マッチする語根が見つかりませんでした。語根一覧から探してみてください。</p>';
+      return;
+    }
+
+    const title = document.createElement('p');
+    title.className = 'text-xs text-gray-500 mb-3';
+    title.textContent = `「${raw}」に含まれる語根: ${matches.length}件`;
+    container.appendChild(title);
+    matches.forEach(r => container.appendChild(makeCard(r, true)));
+  }
+
+  document.getElementById('search-btn').addEventListener('click', doSearch);
+  document.getElementById('word-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doSearch();
+  });
+
+  // ---- タブ ----
+  document.getElementById('tab-all').addEventListener('click', () => {
+    document.getElementById('tab-all').className = 'tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white';
+    document.getElementById('tab-fav').className = 'tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-600 hover:bg-gray-50';
+    document.getElementById('panel-all').classList.remove('hidden');
+    document.getElementById('panel-fav').classList.add('hidden');
+  });
+  document.getElementById('tab-fav').addEventListener('click', () => {
+    document.getElementById('tab-fav').className = 'tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white';
+    document.getElementById('tab-all').className = 'tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-600 hover:bg-gray-50';
+    document.getElementById('panel-fav').classList.remove('hidden');
+    document.getElementById('panel-all').classList.add('hidden');
+    renderFavs();
+  });
+
+  renderAll();
+</script>
+</body>
+</html>
